@@ -1,5 +1,5 @@
 from cmath import pi
-from multiprocessing import Condition, Lock, Semaphore
+from multiprocessing import Condition, Lock, Manager, Semaphore
 
 class Table:
     def __init__(self, nphil, manager):
@@ -31,13 +31,24 @@ class Table:
 
 class CheatMonitor:
     def __init__(self):
-        self.thinking = [Semaphore(0), Semaphore(0)]
+        self.mutex = Lock()
+        self.manager = Manager()
+        self.cheaters = self.manager.list([False]*2)
+        self.other_eating = Condition(self.mutex)
 
     def is_eating(self, pid):
-        self.thinking[1 if pid == 0 else 0].release()
+        self.mutex.acquire()
+        self.cheaters[pid//2] = True
+        self.other_eating.notify_all()
+        self.mutex.release()
 
     def wants_think(self, pid):
-        self.thinking[pid//2].acquire()
+        self.mutex.acquire()
+        self.other_eating.wait_for(lambda: self.cheaters[1 if pid == 0 else 0])
+        self.cheaters[pid//2] = False
+        self.mutex.release()
+
+# Sin empezar vvv
 
 class AnticheatTable:
     def __init__(self, nphil, manager):
