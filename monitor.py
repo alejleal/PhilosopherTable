@@ -6,24 +6,25 @@ class Table:
         self.mutex = Lock()
         self.size = nphil
         self.manager = manager
-        self.phils = self.manager.list([False]*self.size)
+        self.eating = self.manager.list([False]*self.size)
         self.freefork = Condition(self.mutex)
 
     def set_current_phil(self, pid):
         self.curr_phil = pid
 
     def check_forks(self):
-        return not self.phils[(self.curr_phil - 1) % self.size] and not self.phils[(self.curr_phil + 1) % self.size]
+        return not self.eating[(self.curr_phil - 1) % self.size] and not self.eating[(self.curr_phil + 1) % self.size]
 
     def wants_eat(self, pid):
         self.mutex.acquire()
+        self.set_current_phil(pid)
         self.freefork.wait_for(self.check_forks)
-        self.phils[pid] = True
+        self.eating[pid] = True
         self.mutex.release()
 
     def wants_think(self, pid):
         self.mutex.acquire()
-        self.phils[pid] = False
+        self.eating[pid] = False
         self.freefork.notify_all()
         self.mutex.release()
 
@@ -55,23 +56,38 @@ class AnticheatTable:
         self.mutex = Lock()
         self.size = nphil
         self.manager = manager
-        self.phils = self.manager.list([False]*self.size)
+        self.eating = self.manager.list([False]*self.size)
+        self.hungry = self.manager.list([False]*self.size)
         self.freefork = Condition(self.mutex)
+        self.chungry = Condition(self.mutex)
 
     def set_current_phil(self, pid):
         self.curr_phil = pid
 
     def check_forks(self):
-        return not self.phils[(self.curr_phil - 1) % self.size] and not self.phils[(self.curr_phil + 1) % self.size]
+        return not self.eating[(self.curr_phil - 1) % self.size] and not self.eating[(self.curr_phil + 1) % self.size]
+
+    def check_hungry(self):
+        return not self.hungry[(self.curr_phil + 1) % self.size] # and not self.hungry[(self.curr_phil - 1) % self.size]
 
     def wants_eat(self, pid):
         self.mutex.acquire()
+        self.set_current_phil(pid)
+
+        self.chungry.wait_for(self.check_hungry)
+        self.hungry[pid] = True
+        print(f"Philosopher {pid} hungry")
+
         self.freefork.wait_for(self.check_forks)
-        self.phils[pid] = True
+        self.eating[pid] = True
+
+        self.hungry[pid] = False
+        self.chungry.notify_all()
+
         self.mutex.release()
 
     def wants_think(self, pid):
         self.mutex.acquire()
-        self.phils[pid] = False
+        self.eating[pid] = False
         self.freefork.notify_all()
         self.mutex.release()
