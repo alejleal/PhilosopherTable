@@ -45,11 +45,9 @@ class CheatMonitor:
 
     def wants_think(self, pid):
         self.mutex.acquire()
-        self.other_eating.wait_for(lambda: self.cheaters[1 if pid == 0 else 0])
+        self.other_eating.wait_for(lambda: self.cheaters[1 if pid == 0 else 0], timeout=2)
         self.cheaters[pid//2] = False
         self.mutex.release()
-
-# Sin empezar vvv
 
 class AnticheatTable:
     def __init__(self, nphil, manager):
@@ -74,8 +72,8 @@ class AnticheatTable:
         self.mutex.acquire()
         self.set_current_phil(pid)
 
-        self.chungry.wait_for(self.check_hungry)
         self.hungry[pid] = True
+        self.chungry.wait_for(self.check_hungry)
         print(f"Philosopher {pid} hungry")
 
         self.freefork.wait_for(self.check_forks)
